@@ -164,7 +164,7 @@ pub contract RentNFT{
             _nftOwnerCap: Capability<&{NonFungibleToken.Provider, NonFungibleToken.CollectionPublic}>
         ){
             pre {
-                _nftOwnerCap.check(): “This capability is not valid.”
+                _nftOwnerCap.check(): "This capability is not valid."
                 _nftOwnerCap.borrow()!.borrowNFT(id: self.nftId) != nil: "User does not have this NFT"
             }
 
@@ -176,11 +176,6 @@ pub contract RentNFT{
             emit NFTRemovedFromList(listId: nftUuid)
         }
 
-        pre {
-            _flowTokenNftOwnerPubCap.check(): “This capability is not valid.”
-            _nftOwnerCap.check(): “This capability is not valid.”
-        } 
-
         init(
         _flowTokenNftOwnerPubCap: Capability<&FlowToken.Receiver{FungibleToken.Receiver}>,
         _nftOwnerCap: Capability<&{NonFungibleToken.Provider, NonFungibleToken.CollectionPublic}>,
@@ -191,6 +186,8 @@ pub contract RentNFT{
         _nftUuid: UInt64
         ){
             pre {
+                _flowTokenNftOwnerPubCap.check(): "This capability is not valid."
+                _nftOwnerCap.check(): "This capability is not valid."
                 _nftOwnerCap.borrow()!.borrowNFT(id: _nftId).uuid == _nftUuid: "Incorrect ID!"
             }
 
@@ -396,9 +393,9 @@ pub contract RentNFT{
         ){
 
         pre {
-            _nftOwnerFlowTokenPubCap.check(): “This capability is not valid.”
-            _nftRenterFlowTokenPubCap.check(): “This capability is not valid.”
-            _nftOwnerNftPubCap.check(): “This capability is not valid.”
+            _nftOwnerFlowTokenPubCap.check(): "This capability is not valid."
+            _nftRenterFlowTokenPubCap.check(): "This capability is not valid."
+            _nftOwnerNftPubCap.check(): "This capability is not valid."
         }
 
             self.nftUuid = _nftUuid
@@ -423,7 +420,7 @@ pub contract RentNFT{
         nftOwnerCap: Capability<&{NonFungibleToken.Provider, NonFungibleToken.CollectionPublic}>
         ){
             pre {
-                _nftOwnerCap.check(): “This capability is not valid.”
+                _nftOwnerCap.check(): "This capability is not valid."
             }
 
             let rentList <- RentNFT.nftRentList.remove(key: listUuid) ?? panic("List does not exists")
