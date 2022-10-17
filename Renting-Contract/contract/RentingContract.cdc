@@ -106,7 +106,7 @@ pub contract RentNFT{
         pub fun rentListedNFT(
             renterNftPubCap: Capability<&{NonFungibleToken.CollectionPublic}>,
             renterFlowTokenPubCap: Capability<&FlowToken.Receiver{FungibleToken.Receiver}>,
-            paymentToRentAndCollateral: @FungibleToken.Vault,
+            paymentToRentAndCollateral: @FlowToken.Vault,
         ){
             pre{
                 paymentToRentAndCollateral.balance == (self.priceToRent + self.collateralToRent): "Incorrect payment value"
@@ -359,7 +359,7 @@ pub contract RentNFT{
     pub resource Scrow{
         pub let nftId: UInt64
         pub let nftUuid: UInt64
-        pub let collateral: @FungibleToken.Vault
+        pub let collateral: @FlowToken.Vault
         pub let collateralValue: UFix64
         pub let deadlineOfRent: UFix64
         pub let endOfRent: UFix64
@@ -367,7 +367,7 @@ pub contract RentNFT{
         pub let nftRenterFlowTokenPubCap: Capability<&FlowToken.Receiver{FungibleToken.Receiver}>
         pub let nftOwnerNftPubCap: Capability<&{NonFungibleToken.Provider, NonFungibleToken.CollectionPublic}>
 
-        pub fun getCollateral(): @FungibleToken.Vault{
+        pub fun getCollateral(): @FlowToken.Vault{
             return <- self.collateral.withdraw(amount: self.collateralValue)
         }
 
@@ -384,7 +384,7 @@ pub contract RentNFT{
         }
 
         init (
-        _collateral: @FungibleToken.Vault, 
+        _collateral: @FlowToken.Vault, 
         _collateralValue: UFix64,
         _deadlineOfRent: UFix64,
         _nftOwnerFlowTokenPubCap: Capability<&FlowToken.Receiver{FungibleToken.Receiver}>,
