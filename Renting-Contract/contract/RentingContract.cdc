@@ -209,9 +209,11 @@ pub contract RentNFT{
         pub fun getEndedScrowIDs(): [UInt64]
         pub fun getEndedScrowData(scrowId: UInt64): ScrowData
         pub fun getScrowData(scrowId: UInt64): ScrowData?
+        pub fun returnNftToOwner(scrowId: UInt64, nftRented: @NonFungibleToken.NFT, nftRenterFlowTokenPubCap: Capability<&FlowToken.Receiver{FungibleToken.Receiver}>)
+        pub fun finishScrow(scrowId: UInt64)
     }
 
-    pub resource ScrowCollection: ScrowPublicCollection{
+    pub resource ScrowCollection: ScrowPublicCollection {
         pub var scrowsList: @{UInt64: Scrow}
         pub var finishedScrows: {UInt64: ScrowData}
 
@@ -236,7 +238,7 @@ pub contract RentNFT{
         }
 
         //Function that return the Ended Scrow Data
-        pub fun getEndedScrowData(scrowId: UInt64): ScrowData{
+        pub fun getEndedScrowData(scrowId: UInxt64): ScrowData{
             return self.finishedScrows[scrowId] ?? panic("Scrow ID does not exists or it's not finished yet")
         }
 
@@ -381,7 +383,7 @@ pub contract RentNFT{
             self.nftOwnerFlowTokenPubCap.borrow()!.deposit(from: <- self.getCollateral())
         }
 
-        init(
+        init (
         _collateral: @FungibleToken.Vault, 
         _collateralValue: UFix64,
         _deadlineOfRent: UFix64,
@@ -390,7 +392,7 @@ pub contract RentNFT{
         _nftOwnerNftPubCap: Capability<&{NonFungibleToken.Provider, NonFungibleToken.CollectionPublic}>,
         _nftUuid: UInt64,
         _nftId: UInt64
-        ){
+        ) {
 
         pre {
             _nftOwnerFlowTokenPubCap.check(): "This capability is not valid."
