@@ -83,7 +83,7 @@ pub contract RentNFT{
     pub resource RentList{
 
         // NFT Owner Flow Token Public Capability to deposit the rent payment value
-        access(self) let flowTokenNftOwnerPubCap: Capability<&{FungibleToken.Receiver}>  
+        access(self) let flowTokenNftOwnerPubCap: Capability<&FlowToken.Receiver{FungibleToken.Receiver}>  
         // NFT Owner nft capability to withdraw the NFT once someone rent it
         access(self) let nftOwnerCap: Capability<&{NonFungibleToken.Provider, NonFungibleToken.CollectionPublic}>
         
@@ -105,7 +105,7 @@ pub contract RentNFT{
         // Function to be called to Rent a NFT that it's listed
         pub fun rentListedNFT(
             renterNftPubCap: Capability<&{NonFungibleToken.CollectionPublic}>,
-            renterFlowTokenPubCap: Capability<&{FungibleToken.Receiver}>,
+            renterFlowTokenPubCap: Capability<&FlowToken.Receiver{FungibleToken.Receiver}>,
             paymentToRentAndCollateral: @FungibleToken.Vault,
         ){
             pre{
@@ -182,7 +182,7 @@ pub contract RentNFT{
         } 
 
         init(
-        _flowTokenNftOwnerPubCap: Capability<&{FungibleToken.Receiver}>,
+        _flowTokenNftOwnerPubCap: Capability<&FlowToken.Receiver{FungibleToken.Receiver}>,
         _nftOwnerCap: Capability<&{NonFungibleToken.Provider, NonFungibleToken.CollectionPublic}>,
         _nftId: UInt64,
         _priceToRent: UFix64,
@@ -261,7 +261,7 @@ pub contract RentNFT{
         }
 
         //Function that return the NFT to the Owner and the Collateral to the renter
-        pub fun returnNftToOwner(scrowId: UInt64, nftRented: @NonFungibleToken.NFT, nftRenterFlowTokenPubCap: Capability<&{FungibleToken.Receiver}>){
+        pub fun returnNftToOwner(scrowId: UInt64, nftRented: @NonFungibleToken.NFT, nftRenterFlowTokenPubCap: Capability<&FlowToken.Receiver{FungibleToken.Receiver}>){
             pre {
                 self.scrowsList[scrowId] != nil: "Scrow does not exists"
                 self.getScrowData(scrowId: scrowId)!.nftUuid == nftRented.uuid: "Not same NFT"
@@ -364,15 +364,15 @@ pub contract RentNFT{
         pub let collateralValue: UFix64
         pub let deadlineOfRent: UFix64
         pub let endOfRent: UFix64
-        pub let nftOwnerFlowTokenPubCap: Capability<&{FungibleToken.Receiver}>
-        pub let nftRenterFlowTokenPubCap: Capability<&{FungibleToken.Receiver}>
+        pub let nftOwnerFlowTokenPubCap: Capability<&FlowToken.Receiver{FungibleToken.Receiver}>
+        pub let nftRenterFlowTokenPubCap: Capability<&FlowToken.Receiver{FungibleToken.Receiver}>
         pub let nftOwnerNftPubCap: Capability<&{NonFungibleToken.Provider, NonFungibleToken.CollectionPublic}>
 
         pub fun getCollateral(): @FungibleToken.Vault{
             return <- self.collateral.withdraw(amount: self.collateralValue)
         }
 
-        pub fun returnCollateralToNftRender(_nftRenterFlowTokenPubCap: Capability<&{FungibleToken.Receiver}>){
+        pub fun returnCollateralToNftRender(_nftRenterFlowTokenPubCap: Capability<&FlowToken.Receiver{FungibleToken.Receiver}>){
             _nftRenterFlowTokenPubCap.borrow()!.deposit(from: <- self.getCollateral())
         }
 
@@ -388,8 +388,8 @@ pub contract RentNFT{
         _collateral: @FungibleToken.Vault, 
         _collateralValue: UFix64,
         _deadlineOfRent: UFix64,
-        _nftOwnerFlowTokenPubCap: Capability<&{FungibleToken.Receiver}>,
-        _nftRenterFlowTokenPubCap: Capability<&{FungibleToken.Receiver}>,
+        _nftOwnerFlowTokenPubCap: Capability<&FlowToken.Receiver{FungibleToken.Receiver}>,
+        _nftRenterFlowTokenPubCap: Capability<&FlowToken.Receiver{FungibleToken.Receiver}>,
         _nftOwnerNftPubCap: Capability<&{NonFungibleToken.Provider, NonFungibleToken.CollectionPublic}>,
         _nftUuid: UInt64,
         _nftId: UInt64
