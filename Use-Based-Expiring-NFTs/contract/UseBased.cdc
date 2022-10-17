@@ -16,14 +16,13 @@ pub contract UseBased: NonFungibleToken {
         pub let name: String
         pub let description: String
         pub let thumbnail: String
-        pub var expired: Bool
 
-        init(_id: UInt64, _name: String, _description: String, _thumbnail: String, _expired: Bool) {
+        init(_id: UInt64, _name: String, _description: String, _thumbnail: String) {
             self.id = _id
             self.name = _name
             self.description = _description
             self.thumbnail = _thumbnail
-            self.expired = _expired
+            self.expired = false
         }
     }
 
@@ -34,17 +33,38 @@ pub contract UseBased: NonFungibleToken {
         pub let description: String
         pub let thumbnail: String
         pub let expired: Bool
-        init(id: UInt64, name: String, description: String, thumbnail: String, expired: Bool) {
+        access(self) let royalties: [MetadataViews.Royalty]
+        access(self) let metadata: {String: AnyStruct}
+
+        init(id: UInt64, name: String, description: String, thumbnail: String, expired: Bool, royalties: [MetadataViews.Royalty], metadata: {String: AnyStruct}) {
             self.id = id
             self.name = name
             self.description = description
             self.thumbnail = thumbnail
             self.expired = expired
+            self.royalties = royalties
+            self.metadata = metadata
+
             UseBased.totalSupply = UseBased.totalSupply + 1
         }
     
         pub fun getViews(): [Type] {
-            return [ Type<MetadataViews.Display>(), Type<NFTMetaData>()]
+            return [
+                Type<MetadataViews.Display>(),
+                Type<MetadataViews.Royalties>(),
+                Type<MetadataViews.Editions>(),
+                Type<MetadataViews.ExternalURL>(),
+                Type<MetadataViews.NFTCollectionData>(),
+                Type<MetadataViews.NFTCollectionDisplay>(),
+                Type<MetadataViews.Serial>(),
+                Type<MetadataViews.Traits>()
+            ]
+        }
+
+        pub fun getMetadata(): Metadata {
+            let metadata = UseBased.metadata[self.episodeID]!
+            metadata.setEdition(self.edition)
+            return metadata
         }
 
         pub fun resolveView(_ view: Type): AnyStruct? {
@@ -53,16 +73,76 @@ pub contract UseBased: NonFungibleToken {
                     return MetadataViews.Display(
                         name: self.name,
                         description: self.description,
-                        thumbnail: MetadataViews.HTTPFile( url: self.thumbnail )
+                        thumbnail: MetadataViews.HTTPFile(
+                            url: self.thumbnail
+                        )
+                    )
+                case Type<MetadataViews.Editions>():
+                    // There is no max number of NFTs that can be minted from this contract
+                    // so the max edition field value is set to nil
+                    let editionInfo = MetadataViews.Edition(name: "Time Based NFT Edition", number: self.id, max: nil)
+                    let editionList: [MetadataViews.Edition] = [editionInfo]
+                    return MetadataViews.Editions(
+                        editionList
+                    )
+                case Type<MetadataViews.Serial>():
+                    return MetadataViews.Serial(
+                        self.id
+                    )
+                case Type<MetadataViews.Royalties>():
+                    return MetadataViews.Royalties(
+                        self.royalties
+                    )
+                case Type<MetadataViews.ExternalURL>():
+                    return MetadataViews.ExternalURL("https://open.kickback.fm/nft/".concat(self.episodeID))
+                case Type<MetadataViews.NFTCollectionData>():
+                    return MetadataViews.NFTCollectionData(
+                        storagePath: UseBased.CollectionStoragePath,
+                        publicPath: UseBased.CollectionPublicPath,
+                        providerPath: /private/UseBasedCollection,
+                        publicCollection: Type<&UseBased.Collection{UseBased.UseBasedCollectionPublic}>(),
+                        publicLinkedType: Type<&UseBased.Collection{UseBased.UseBasedCollectionPublic,NonFungibleToken.CollectionPublic,NonFungibleToken.Receiver,MetadataViews.ResolverCollection}>(),
+                        providerLinkedType: Type<&UseBased.Collection{UseBased.UseBasedCollectionPublic,NonFungibleToken.CollectionPublic,NonFungibleToken.Provider,MetadataViews.ResolverCollection}>(),
+                        createEmptyCollectionFunction: (fun (): @NonFungibleToken.Collection {
+                            return <-UseBased.createEmptyCollection()
+                        })
+                    )
+                case Type<MetadataViews.NFTCollectionDisplay>():
+                    let media = MetadataViews.Media(
+                        file: MetadataViews.HTTPFile(
+                            url: "https://kickback-photos.s3.amazonaws.com/logo.svg"
+                        ),
+                        mediaType: "image/svg+xml"
+                    )
+                    return MetadataViews.NFTCollectionDisplay(
+                        name: "Time Based NFT Collection",
+                        description: "Welcome to the Time Based NFT Collection!",
+                        externalURL: MetadataViews.ExternalURL("https://open.kickback.fm"),
+                        squareImage: MetadataViews.Media(
+                                        file: MetadataViews.HTTPFile(
+                                            url: "https://kickback-photos.s3.amazonaws.com/logo.png"
+                                        ),
+                                        mediaType: "image/png"
+                                    ),
+                        bannerImage: MetadataViews.Media(
+                                        file: MetadataViews.HTTPFile(
+                                            url: "https://kickback-photos.s3.amazonaws.com/banner.png"
+                                        ),
+                                         mediaType: "image/png"
+                                    ),
+                        socials: {
+                            "twitter": MetadataViews.ExternalURL("https://twitter.com/viaKickback"),
+                            "discord": MetadataViews.ExternalURL("https://discord.com/invite/5BrvrMxaJ2")
+                        }
                     )
                 case Type<NFTMetaData>():
-                return NFTMetaData(
-                    _id: self.id,
-                    _name: self.name,
-                    _description: self.description,
-                    _thumbnail: self.thumbnail,
-                    _expired: self.expired
-                )
+                    return NFTMetaData(
+                        _id: self.id,
+                        _name: self.name,
+                        _description: self.description,
+                        _thumbnail: self.thumbnail,
+                        _expired: self.expired
+                    )
             }
             return nil
         }

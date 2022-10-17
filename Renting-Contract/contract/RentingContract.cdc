@@ -4,6 +4,7 @@
 //TESTNET ADDRESSES
 import NonFungibleToken from 0x631e88ae7f1d7c20
 import FungibleToken from 0x9a0766d93b6608b7
+import FlowToken from 0x7e60df042a9c0868
 
 pub contract RentNFT{
 
@@ -41,8 +42,8 @@ pub contract RentNFT{
         }
     }
 
-    pub fun getListedNft(id: UInt64): &RentNFT.RentList?{
-        return (&self.nftRentList[id] as &RentNFT.RentList?) ?? panic("List does not exist!")
+    pub fun getListedNft(id: UInt64): &RentNFT.RentList? {
+        return (&self.nftRentList[id] as &RentNFT.RentList?)
     }
 
     pub fun getListedNftData(id: UInt64): NftListedData{
@@ -59,32 +60,22 @@ pub contract RentNFT{
 
     // LIST A NFT TO BE RENTED AND STORE IT INSIDE OF THE CONTRACT
     pub fun listNFT(
-        _flowTokenNftOwnerPubCap: Capability<&{FungibleToken.Receiver}>,
+        _flowTokenNftOwnerPubCap: Capability<&FlowToken.Vault{FungibleToken.Receiver}>,
         _nftOwnerCap: Capability<&{NonFungibleToken.Provider, NonFungibleToken.CollectionPublic}>,
-        _nftType: Type,
         _nftId: UInt64,
         _nftUuid: UInt64,
         _priceToRent: UFix64,
         _collateralToRent: UFix64,
         _deadlineOfRent: UFix64
     ){
-        pre{
-            _nftOwnerCap.borrow()!.getIDs().length != 0 : "User does not have and NFT inside his Collection"
-            _nftOwnerCap.borrow()!.borrowNFT(id: _nftId) != nil: "User does not have this NFT!"
-            //_nftOwnerCap.borrow()!.borrowNFT(id: _nftId).uuid == _nftUuid: "Incorrect ID!"
-        }
 
-        let empty <- RentNFT.nftRentList[_nftUuid] <- create RentList(
-            _flowTokenNftOwnerPubCap: _flowTokenNftOwnerPubCap,
+        RentNFT.nftRentList[_nftUuid] <-! create RentList(_flowTokenNftOwnerPubCap: _flowTokenNftOwnerPubCap,
             _nftOwnerCap: _nftOwnerCap,
             _nftId: _nftId,
             _priceToRent: _priceToRent,
             _collateralToRent: _collateralToRent,
             _deadlineOfRent: _deadlineOfRent,
-            _nftUuid: _nftUuid
-        )
-
-        destroy empty
+            _nftUuid: _nftUuid)
         emit NFTListed(listId: _nftUuid)
     }
     
@@ -92,9 +83,9 @@ pub contract RentNFT{
     pub resource RentList{
 
         // NFT Owner Flow Token Public Capability to deposit the rent payment value
-        access(contract) let flowTokenNftOwnerPubCap: Capability<&{FungibleToken.Receiver}>  
+        access(self) let flowTokenNftOwnerPubCap: Capability<&{FungibleToken.Receiver}>  
         // NFT Owner nft capability to withdraw the NFT once someone rent it
-        access(contract) let nftOwnerCap: Capability<&{NonFungibleToken.Provider, NonFungibleToken.CollectionPublic}>
+        access(self) let nftOwnerCap: Capability<&{NonFungibleToken.Provider, NonFungibleToken.CollectionPublic}>
         
         //Type of NFT listed
         pub let nftType: Type 
@@ -119,7 +110,7 @@ pub contract RentNFT{
         ){
             pre{
                 paymentToRentAndCollateral.balance == (self.priceToRent + self.collateralToRent): "Incorrect payment value"
-                self.alreadyRented == false: "NFT already rented"
+                !self.alreadyRented: "NFT already rented"
                 self.nftOwnerCap.borrow()!.borrowNFT(id: self.nftId) != nil: "NFT does not exist in the collection!"
             }
             
@@ -172,7 +163,8 @@ pub contract RentNFT{
         pub fun removeOfListingAndDestroy(
             _nftOwnerCap: Capability<&{NonFungibleToken.Provider, NonFungibleToken.CollectionPublic}>
         ){
-            pre{
+            pre {
+                _nftOwnerCap.check(): “This capability is not valid.”
                 _nftOwnerCap.borrow()!.borrowNFT(id: self.nftId) != nil: "User does not have this NFT"
             }
 
@@ -182,7 +174,12 @@ pub contract RentNFT{
             
             destroy rentList
             emit NFTRemovedFromList(listId: nftUuid)
-        }   
+        }
+
+        pre {
+            _flowTokenNftOwnerPubCap.check(): “This capability is not valid.”
+            _nftOwnerCap.check(): “This capability is not valid.”
+        } 
 
         init(
         _flowTokenNftOwnerPubCap: Capability<&{FungibleToken.Receiver}>,
@@ -193,6 +190,10 @@ pub contract RentNFT{
         _deadlineOfRent: UFix64,
         _nftUuid: UInt64
         ){
+            pre {
+                _nftOwnerCap.borrow()!.borrowNFT(id: _nftId).uuid == _nftUuid: "Incorrect ID!"
+            }
+
             self.flowTokenNftOwnerPubCap = _flowTokenNftOwnerPubCap
             self.nftOwnerCap = _nftOwnerCap
             self.nftType = _nftOwnerCap.borrow()!.borrowNFT(id: _nftId).getType()
@@ -261,7 +262,7 @@ pub contract RentNFT{
 
         //Function that return the NFT to the Owner and the Collateral to the renter
         pub fun returnNftToOwner(scrowId: UInt64, nftRented: @NonFungibleToken.NFT, nftRenterFlowTokenPubCap: Capability<&{FungibleToken.Receiver}>){
-            pre{
+            pre {
                 self.scrowsList[scrowId] != nil: "Scrow does not exists"
                 self.getScrowData(scrowId: scrowId)!.nftUuid == nftRented.uuid: "Not same NFT"
             }
@@ -393,6 +394,13 @@ pub contract RentNFT{
         _nftUuid: UInt64,
         _nftId: UInt64
         ){
+
+        pre {
+            _nftOwnerFlowTokenPubCap.check(): “This capability is not valid.”
+            _nftRenterFlowTokenPubCap.check(): “This capability is not valid.”
+            _nftOwnerNftPubCap.check(): “This capability is not valid.”
+        }
+
             self.nftUuid = _nftUuid
             self.collateral <- _collateral
             self.collateralValue = _collateralValue
@@ -409,28 +417,15 @@ pub contract RentNFT{
         }
     }
 
-    pub resource Admin{
-        // Function to be called to Rent a NFT that it's listed
-        pub fun rentListedNFT(
-            renterNftPubCap: Capability<&{NonFungibleToken.CollectionPublic}>,
-            renterFlowTokenPubCap: Capability<&{FungibleToken.Receiver}>,
-            paymentToRentAndCollateral: @FungibleToken.Vault,
-            nftToRentUuid: UInt64
-        ){
-            let rentList <- RentNFT.nftRentList.remove(key: nftToRentUuid) ?? panic("List does not exists")
-
-            rentList.rentListedNFT(
-            renterNftPubCap: renterNftPubCap, 
-            renterFlowTokenPubCap: renterFlowTokenPubCap, 
-            paymentToRentAndCollateral: <- paymentToRentAndCollateral)
-
-            RentNFT.nftRentList[nftToRentUuid] <-! rentList
-        }
-
+    pub resource Admin {
         pub fun destroyListing(
         listUuid: UInt64,
         nftOwnerCap: Capability<&{NonFungibleToken.Provider, NonFungibleToken.CollectionPublic}>
         ){
+            pre {
+                _nftOwnerCap.check(): “This capability is not valid.”
+            }
+
             let rentList <- RentNFT.nftRentList.remove(key: listUuid) ?? panic("List does not exists")
 
             rentList.removeOfListingAndDestroy(_nftOwnerCap: nftOwnerCap)
@@ -444,7 +439,7 @@ pub contract RentNFT{
      self.rentedNftList = {}
      self.account.save(<- create ScrowCollection(), to: /storage/RentNFTScrowCollection)
 
-     self.account.link<&{RentNFT.ScrowPublicCollection}>(/public/RentNFTScrowCollection, target: /storage/RentNFTScrowCollection)
+     self.account.link<&RentNFT.ScrowCollection{RentNFT.ScrowPublicCollection}>(/public/RentNFTScrowCollection, target: /storage/RentNFTScrowCollection)
 
      let admin <- create Admin()
         self.account.save(<- admin, to: /storage/RentNFTAdmin)
@@ -452,3 +447,4 @@ pub contract RentNFT{
     emit RentNFTDeployed()
     }
 }
+ 
